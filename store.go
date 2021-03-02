@@ -1,4 +1,4 @@
-package cache
+package cachestore
 
 import (
 	"encoding/json"
