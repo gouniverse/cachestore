@@ -1,1 +1,6 @@
-# cache-store
+# cachestore
+
+
+## Usage
+
+cacheStore = cachestore.NewStore(cachestore.WithGormDb(databaseInstance), cachestore.WithTableName("my_cache"))
