@@ -122,6 +122,11 @@ func (st *Store) GetJSON(key string, valueDefault interface{}) interface{} {
 	return valueDefault
 }
 
+// GetJSON gets a JSON key from cache
+func (st *Store) Remove(key string) {
+	st.db.Table(st.cacheTableName).Where("`cache_key` = ?", key).Delete(Cache{})
+}
+
 // Set sets new key value pair
 func (st *Store) Set(key string, value string, seconds int64) bool {
 	cache := st.FindByKey(key)
