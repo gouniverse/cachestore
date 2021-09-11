@@ -1,20 +1,23 @@
 package cachestore
 
 import (
+	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
+	"reflect"
+	"strings"
 	"time"
 
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+	"github.com/doug-martin/goqu/v9"
+	"github.com/gouniverse/uid"
 )
 
 // Store defines a session store
 type Store struct {
 	cacheTableName     string
-	db                 *gorm.DB
+	dbDriverName       string
+	db                 *sql.DB
 	automigrateEnabled bool
 }
 
@@ -28,23 +31,11 @@ func WithAutoMigrate(automigrateEnabled bool) StoreOption {
 	}
 }
 
-// WithDriverAndDNS sets the driver and the DNS for the database for the cache store
-func WithDriverAndDNS(driverName string, dsn string) StoreOption {
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
-
-	if err != nil {
-		panic("failed to connect database")
-	}
-
+// WithDb sets the database for the setting store
+func WithDb(db *sql.DB) StoreOption {
 	return func(s *Store) {
 		s.db = db
-	}
-}
-
-// WithGormDb sets the GORM database for the cache store
-func WithGormDb(db *gorm.DB) StoreOption {
-	return func(s *Store) {
-		s.db = db
+		s.dbDriverName = s.DriverName(s.db)
 	}
 }
 
@@ -74,35 +65,74 @@ func NewStore(opts ...StoreOption) *Store {
 }
 
 // AutoMigrate auto migrate
-func (st *Store) AutoMigrate() {
-	st.db.Table(st.cacheTableName).AutoMigrate(&Cache{})
+func (st *Store) AutoMigrate() error {
+	sql := st.SqlCreateTable()
+
+	_, err := st.db.Exec(sql)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	return nil
+}
+
+// DriverName finds the driver name from database
+func (st *Store) DriverName(db *sql.DB) string {
+	dv := reflect.ValueOf(db.Driver())
+	driverFullName := dv.Type().String()
+	if strings.Contains(driverFullName, "mysql") {
+		return "mysql"
+	}
+	if strings.Contains(driverFullName, "postgres") || strings.Contains(driverFullName, "pq") {
+		return "postgres"
+	}
+	if strings.Contains(driverFullName, "sqlite") {
+		return "sqlite"
+	}
+	if strings.Contains(driverFullName, "mssql") {
+		return "mssql"
+	}
+	return driverFullName
 }
 
 // ExpireCacheGoroutine - soft deletes expired cache
-func (st *Store) ExpireCacheGoroutine() {
+func (st *Store) ExpireCacheGoroutine() error {
 	i := 0
 	for {
 		i++
 		fmt.Println("Cleaning expired sessions...")
-		st.db.Table(st.cacheTableName).Where("`expires_at` < ?", time.Now()).Delete(Cache{})
+		sqlStr, _, _ := goqu.From(st.cacheTableName).Where(goqu.C("expires_at").Lt(time.Now())).Delete().ToSQL()
+
+		// DEBUG: log.Println(sqlStr)
+
+		_, err := st.db.Exec(sqlStr)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return nil
+			}
+			log.Fatal("Failed to execute query: ", err)
+			return nil
+		}
+
 		time.Sleep(60 * time.Second) // Every minute
 	}
 }
 
 // FindByKey finds a cache by key
 func (st *Store) FindByKey(key string) *Cache {
-	// log.Println(key)
-
 	cache := &Cache{}
+	sqlStr, _, _ := goqu.From(st.cacheTableName).Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).Select(Cache{}).ToSQL()
 
-	result := st.db.Table(st.cacheTableName).Where("`cache_key` = ?", key).First(&cache)
+	// log.Println(sqlStr)
 
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+	err := st.db.QueryRow(sqlStr).Scan(&cache.CreatedAt, &cache.DeletedAt, &cache.ID, &cache.Key, &cache.Value, &cache.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
 			return nil
 		}
-
-		log.Panic(result.Error)
+		log.Fatal("Failed to execute query: ", err)
+		return nil
 	}
 
 	return cache
@@ -138,36 +168,57 @@ func (st *Store) GetJSON(key string, valueDefault interface{}) interface{} {
 }
 
 // GetJSON gets a JSON key from cache
-func (st *Store) Remove(key string) {
-	st.db.Table(st.cacheTableName).Where("`cache_key` = ?", key).Delete(Cache{})
+func (st *Store) Remove(key string) error {
+	sqlStr, _, _ := goqu.From(st.cacheTableName).Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).Delete().ToSQL()
+
+	// log.Println(sqlStr)
+
+	_, err := st.db.Exec(sqlStr)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		log.Fatal("Failed to execute query: ", err)
+		return nil
+	}
+
+	return nil
 }
 
 // Set sets new key value pair
-func (st *Store) Set(key string, value string, seconds int64) bool {
+func (st *Store) Set(key string, value string, seconds int64) (bool, error) {
 	cache := st.FindByKey(key)
 
 	expiresAt := time.Now().Add(time.Second * time.Duration(seconds))
 
-	if cache != nil {
-		cache.Value = value
-		cache.ExpiresAt = &expiresAt
-		//dbResult := GetDb().Table(User).Where("`key` = ?", key).Update(&cache)
-		dbResult := st.db.Table(st.cacheTableName).Save(&cache)
-		if dbResult != nil {
-			return false
+	var sqlStr string
+	if cache == nil {
+		var newCache = Cache{
+			ID:        uid.MicroUid(),
+			Key:       key,
+			Value:     value,
+			ExpiresAt: &expiresAt,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
 		}
-		return true
+		sqlStr, _, _ = goqu.Insert(st.cacheTableName).Rows(newCache).ToSQL()
+	} else {
+		cache.Value = value
+		cache.UpdatedAt = time.Now()
+		sqlStr, _, _ = goqu.Update(st.cacheTableName).Set(cache).ToSQL()
 	}
 
-	var newCache = Cache{Key: key, Value: value, ExpiresAt: &expiresAt}
+	// log.Println(sqlStr)
 
-	dbResult := st.db.Table(st.cacheTableName).Create(&newCache)
+	_, err := st.db.Exec(sqlStr)
 
-	if dbResult.Error != nil {
-		return false
+	if err != nil {
+		log.Println(err)
+		return false, err
 	}
 
-	return true
+	return true, nil
+	// return true
 	// sql := sb.NewSqlite().Table(st.tableName).Insert(map[string]string{
 	// 	"id":          uid.NanoUid(),
 	// 	"cache_key":   key,
@@ -181,45 +232,64 @@ func (st *Store) Set(key string, value string, seconds int64) bool {
 }
 
 // Set sets new key value pair
-func (st *Store) SetJSON(key string, value interface{}, seconds int64) bool {
+func (st *Store) SetJSON(key string, value interface{}, seconds int64) (bool, error) {
 	jsonValue, jsonError := json.Marshal(value)
 	if jsonError != nil {
-		return false
+		return false, jsonError
 	}
 
-	cache := st.FindByKey(key)
+	return st.Set(key, string(jsonValue), seconds)
+}
 
-	expiresAt := time.Now().Add(time.Second * time.Duration(seconds))
+// SqlCreateTable returns a SQL string for creating the setting table
+func (st *Store) SqlCreateTable() string {
+	sqlMysql := `
+	CREATE TABLE IF NOT EXISTS ` + st.cacheTableName + ` (
+	  id varchar(40) NOT NULL PRIMARY KEY,
+	  cache_key varchar(40) NOT NULL,
+	  cache_value text,
+	  expires_at datetime,
+	  created_at datetime NOT NULL,
+	  updated_at datetime NOT NULL,
+	  deleted_at datetime
+	);
+	`
 
-	if cache != nil {
+	sqlPostgres := `
+	CREATE TABLE IF NOT EXISTS "` + st.cacheTableName + `" (
+	  "id" varchar(40) NOT NULL PRIMARY KEY,
+	  "cache_key" varchar(40) NOT NULL,
+	  "cache_value" text,
+	  "expires_at" timestamptz(6),
+	  "created_at" timestamptz(6) NOT NULL,
+	  "updated_at" timestamptz(6) NOT NULL,
+	  "deleted_at" timestamptz(6)
+	)
+	`
 
-		cache.Value = string(jsonValue)
-		cache.ExpiresAt = &expiresAt
-		//dbResult := GetDb().Table(User).Where("`key` = ?", key).Update(&cache)
-		dbResult := st.db.Table(st.cacheTableName).Save(&cache)
-		if dbResult != nil {
-			return false
-		}
-		return true
+	sqlSqlite := `
+	CREATE TABLE IF NOT EXISTS "` + st.cacheTableName + `" (
+	  "id" varchar(40) NOT NULL PRIMARY KEY,
+	  "cache_key" varchar(40) NOT NULL,
+	  "cache_value" text,
+	  "expires_at" datetime,
+	  "created_at" datetime NOT NULL,
+	  "updated_at" datetime NOT NULL,
+	  "deleted_at" datetime
+	)
+	`
+
+	sql := "unsupported driver " + st.dbDriverName
+
+	if st.dbDriverName == "mysql" {
+		sql = sqlMysql
+	}
+	if st.dbDriverName == "postgres" {
+		sql = sqlPostgres
+	}
+	if st.dbDriverName == "sqlite" {
+		sql = sqlSqlite
 	}
 
-	var newCache = Cache{Key: key, Value: string(jsonValue), ExpiresAt: &expiresAt}
-
-	dbResult := st.db.Table(st.cacheTableName).Create(&newCache)
-
-	if dbResult.Error != nil {
-		return false
-	}
-
-	return true
-	// sql := sb.NewSqlite().Table(st.tableName).Insert(map[string]string{
-	// 	"id":          uid.NanoUid(),
-	// 	"cache_key":   key,
-	// 	"cache_value": value,
-	// 	"expires_at":  expiresAt.Format("2006-01-02T15:04:05"),
-	// 	"created_at":  time.Now().Format("2006-01-02T15:04:05"),
-	// 	"updated_at":  time.Now().Format("2006-01-02T15:04:05"),
-	// })
-	// log.Println(sql)
-	// return true
+	return sql
 }
