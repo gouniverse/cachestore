@@ -30,3 +30,6 @@ if isSaved == false {
 ```
 token := cacheStore.Get("token", "")
 ```
+
+## Changelog
+2021.09.11 - Removed GORM dependency and moved to the standard library
