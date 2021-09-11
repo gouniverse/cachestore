@@ -13,3 +13,8 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+test_cache_automigrate.db
+test_cache_delete.db
+test_cache_store_create.db
+test_entity_automigrate.db
+test_store_create.db

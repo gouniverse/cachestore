@@ -3,6 +3,7 @@ package cachestore
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"reflect"
@@ -47,21 +48,21 @@ func WithTableName(cacheTableName string) StoreOption {
 }
 
 // NewStore creates a new entity store
-func NewStore(opts ...StoreOption) *Store {
+func NewStore(opts ...StoreOption) (*Store, error) {
 	store := &Store{}
 	for _, opt := range opts {
 		opt(store)
 	}
 
 	if store.cacheTableName == "" {
-		log.Panic("User store: cacheTableName is required")
+		return nil, errors.New("User store: cacheTableName is required")
 	}
 
 	if store.automigrateEnabled == true {
 		store.AutoMigrate()
 	}
 
-	return store
+	return store, nil
 }
 
 // AutoMigrate auto migrate
@@ -122,17 +123,44 @@ func (st *Store) ExpireCacheGoroutine() error {
 // FindByKey finds a cache by key
 func (st *Store) FindByKey(key string) *Cache {
 	cache := &Cache{}
-	sqlStr, _, _ := goqu.From(st.cacheTableName).Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).Select(Cache{}).ToSQL()
+	sqlStr, _, _ := goqu.From(st.cacheTableName).Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).Select("cache_key", "cache_value", "created_at", "deleted_at", "expires_at", "id", "updated_at").ToSQL()
 
-	// log.Println(sqlStr)
+	// DEBUG: log.Println(sqlStr)
 
-	err := st.db.QueryRow(sqlStr).Scan(&cache.CreatedAt, &cache.DeletedAt, &cache.ID, &cache.Key, &cache.Value, &cache.UpdatedAt)
+	var createdAt string
+	var updatedAt string
+	var deletedAt *string
+	var expiresAt *string
+
+	err := st.db.QueryRow(sqlStr).Scan(&cache.Key, &cache.Value, &createdAt, &deletedAt, &expiresAt, &cache.ID, &updatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil
 		}
 		log.Fatal("Failed to execute query: ", err)
 		return nil
+	}
+
+	layout := "Mon Jan 02 2006 15:04:05 GMT-0700"
+	createdAtTime, err := time.Parse(layout, createdAt)
+	if err == nil {
+		cache.CreatedAt = createdAtTime
+	}
+	updatedAtTime, err := time.Parse(layout, updatedAt)
+	if err == nil {
+		cache.UpdatedAt = updatedAtTime
+	}
+	if deletedAt != nil {
+		deletedAtTime, err := time.Parse(layout, *deletedAt)
+		if err == nil {
+			cache.DeletedAt = &deletedAtTime
+		}
+	}
+	if expiresAt != nil {
+		expiresAtTime, err := time.Parse(layout, *expiresAt)
+		if err == nil {
+			cache.ExpiresAt = &expiresAtTime
+		}
 	}
 
 	return cache
@@ -213,7 +241,6 @@ func (st *Store) Set(key string, value string, seconds int64) (bool, error) {
 	_, err := st.db.Exec(sqlStr)
 
 	if err != nil {
-		log.Println(err)
 		return false, err
 	}
 
