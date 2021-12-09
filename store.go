@@ -11,6 +11,10 @@ import (
 	"time"
 
 	"github.com/doug-martin/goqu/v9"
+	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
+	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
+	_ "github.com/doug-martin/goqu/v9/dialect/sqlite3"
+	_ "github.com/doug-martin/goqu/v9/dialect/sqlserver"
 	"github.com/gouniverse/uid"
 )
 
@@ -20,6 +24,7 @@ type Store struct {
 	dbDriverName       string
 	db                 *sql.DB
 	automigrateEnabled bool
+	debug              bool
 }
 
 // StoreOption options for the cache store
@@ -40,6 +45,13 @@ func WithDb(db *sql.DB) StoreOption {
 	}
 }
 
+// WithDebug prints the SQL queries
+func WithDebug(debug bool) StoreOption {
+	return func(s *Store) {
+		s.debug = debug
+	}
+}
+
 // WithTableName sets the table name for the cache store
 func WithTableName(cacheTableName string) StoreOption {
 	return func(s *Store) {
@@ -55,10 +67,14 @@ func NewStore(opts ...StoreOption) (*Store, error) {
 	}
 
 	if store.cacheTableName == "" {
-		return nil, errors.New("User store: cacheTableName is required")
+		return nil, errors.New("cache store: cacheTableName is required")
 	}
 
-	if store.automigrateEnabled == true {
+	if store.debug {
+		log.Println(store.dbDriverName)
+	}
+
+	if store.automigrateEnabled {
 		store.AutoMigrate()
 	}
 
@@ -103,9 +119,11 @@ func (st *Store) ExpireCacheGoroutine() error {
 	for {
 		i++
 		fmt.Println("Cleaning expired sessions...")
-		sqlStr, _, _ := goqu.From(st.cacheTableName).Where(goqu.C("expires_at").Lt(time.Now())).Delete().ToSQL()
+		sqlStr, _, _ := goqu.Dialect(st.dbDriverName).From(st.cacheTableName).Where(goqu.C("expires_at").Lt(time.Now())).Delete().ToSQL()
 
-		// DEBUG: log.Println(sqlStr)
+		if st.debug {
+			log.Println(sqlStr)
+		}
 
 		_, err := st.db.Exec(sqlStr)
 		if err != nil {
@@ -123,9 +141,11 @@ func (st *Store) ExpireCacheGoroutine() error {
 // FindByKey finds a cache by key
 func (st *Store) FindByKey(key string) *Cache {
 	cache := &Cache{}
-	sqlStr, _, _ := goqu.From(st.cacheTableName).Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).Select("cache_key", "cache_value", "created_at", "deleted_at", "expires_at", "id", "updated_at").ToSQL()
+	sqlStr, _, _ := goqu.Dialect(st.dbDriverName).From(st.cacheTableName).Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).Select("cache_key", "cache_value", "created_at", "deleted_at", "expires_at", "id", "updated_at").ToSQL()
 
-	// DEBUG: log.Println(sqlStr)
+	if st.debug {
+		log.Println(sqlStr)
+	}
 
 	var createdAt string
 	var updatedAt string
@@ -197,15 +217,18 @@ func (st *Store) GetJSON(key string, valueDefault interface{}) interface{} {
 
 // GetJSON gets a JSON key from cache
 func (st *Store) Remove(key string) error {
-	sqlStr, _, _ := goqu.From(st.cacheTableName).Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).Delete().ToSQL()
+	sqlStr, _, _ := goqu.Dialect(st.dbDriverName).From(st.cacheTableName).Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).Delete().ToSQL()
 
-	// log.Println(sqlStr)
+	if st.debug {
+		log.Println(sqlStr)
+	}
 
 	_, err := st.db.Exec(sqlStr)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil
 		}
+
 		log.Fatal("Failed to execute query: ", err)
 		return nil
 	}
@@ -229,14 +252,16 @@ func (st *Store) Set(key string, value string, seconds int64) (bool, error) {
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		}
-		sqlStr, _, _ = goqu.Insert(st.cacheTableName).Rows(newCache).ToSQL()
+		sqlStr, _, _ = goqu.Dialect(st.dbDriverName).Insert(st.cacheTableName).Rows(newCache).ToSQL()
 	} else {
 		cache.Value = value
 		cache.UpdatedAt = time.Now()
-		sqlStr, _, _ = goqu.Update(st.cacheTableName).Set(cache).ToSQL()
+		sqlStr, _, _ = goqu.Dialect(st.dbDriverName).Update(st.cacheTableName).Set(cache).ToSQL()
 	}
 
-	// log.Println(sqlStr)
+	if st.debug {
+		log.Println(sqlStr)
+	}
 
 	_, err := st.db.Exec(sqlStr)
 
