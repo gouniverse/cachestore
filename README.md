@@ -10,7 +10,7 @@ go get -u github.com/gouniverse/cachestore
 ## Setup
 
 ```
-cacheStore = cachestore.NewStore(cachestore.WithGormDb(databaseInstance), cachestore.WithTableName("my_cache"))
+cacheStore = cachestore.NewStore(cachestore.WithGormDb(databaseInstance), cachestore.WithTableName("my_cache"), cachestore.WithDebug(true))
 
 go cacheStore.ExpireCacheGoroutine()
 ```
@@ -32,4 +32,5 @@ token := cacheStore.Get("token", "")
 ```
 
 ## Changelog
+2021.12.09 - Added support for DB dialects
 2021.09.11 - Removed GORM dependency and moved to the standard library
