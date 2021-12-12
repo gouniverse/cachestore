@@ -1,6 +1,6 @@
 # Cache Store
 
-[![Tests Status](https://github.com/gouniverse/cachestore/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/georgysavva/scany/actions/workflows/test.yml)
+[![Tests Status](https://github.com/gouniverse/cachestore/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/gouniverse/cachestore/actions/workflows/test.yml)
 
 Cache messages to a database table.
 
