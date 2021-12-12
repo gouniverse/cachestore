@@ -36,7 +36,11 @@ token := cacheStore.Get("token", "") // "" - default value, if the key has expir
 ```
 
 ## Changelog
+
 2021.12.12 - Added tests badge
+
 2021.12.12 - Fixed bug where DB scanner was returning empty values
+
 2021.12.09 - Added support for DB dialects
+
 2021.09.11 - Removed GORM dependency and moved to the standard library
