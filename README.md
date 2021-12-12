@@ -12,7 +12,7 @@ go get -u github.com/gouniverse/cachestore
 ## Setup
 
 ```
-cacheStore = cachestore.NewStore(cachestore.WithGormDb(databaseInstance), cachestore.WithTableName("my_cache"), cachestore.WithDebug(true))
+cacheStore = cachestore.NewStore(cachestore.WithDb(databaseInstance), cachestore.WithTableName("my_cache"), cachestore.WithDebug(true))
 
 go cacheStore.ExpireCacheGoroutine()
 ```
@@ -21,16 +21,16 @@ go cacheStore.ExpireCacheGoroutine()
 
 - Set value to cache with expiration
 ```
-isSaved := cacheStore.Set("token", "ABCDEFGHIJKLMNOPQRSTVUXYZ", 60*60) // 1 hour
+isSaved := cacheStore.Set("token", "ABCDEFGHIJKLMNOPQRSTVUXYZ", 60*60) // 1 hour (= 60 min * 60 sec)
 if isSaved == false {
-		log.Println("Saving failed")
-		return
+	log.Println("Saving failed")
+	return
 }
 ```
 
 - Get value from cache with default if not found
 ```
-token := cacheStore.Get("token", "")
+token := cacheStore.Get("token", "") // "" - default value, if the key has expired, or missing
 ```
 
 ## Changelog
