@@ -1,5 +1,7 @@
 # Cache Store
 
+[![Tests Status](https://github.com/gouniverse/cachestore/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/georgysavva/scany/actions/workflows/test.yml)
+
 Cache messages to a database table.
 
 ## Installation
@@ -32,6 +34,7 @@ token := cacheStore.Get("token", "")
 ```
 
 ## Changelog
+2021.12.12 - Added tests badge
 2021.12.12 - Fixed bug where DB scanner was returning empty values
 2021.12.09 - Added support for DB dialects
 2021.09.11 - Removed GORM dependency and moved to the standard library
