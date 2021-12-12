@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/doug-martin/goqu/v9"
-	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
-	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
-	_ "github.com/doug-martin/goqu/v9/dialect/sqlite3"
-	_ "github.com/doug-martin/goqu/v9/dialect/sqlserver"
+	_ "github.com/doug-martin/goqu/v9/dialect/mysql"     // importing mysql dialect
+	_ "github.com/doug-martin/goqu/v9/dialect/postgres"  // importing postgres dialect
+	_ "github.com/doug-martin/goqu/v9/dialect/sqlite3"   // importing sqlite3 dialect
+	_ "github.com/doug-martin/goqu/v9/dialect/sqlserver" // importing sqlserver dialect
 	"github.com/georgysavva/scany/sqlscan"
 	"github.com/gouniverse/uid"
 )
@@ -85,7 +85,7 @@ func NewStore(opts ...StoreOption) (*Store, error) {
 
 // AutoMigrate auto migrate
 func (st *Store) AutoMigrate() error {
-	sql := st.SqlCreateTable()
+	sql := st.SQLCreateTable()
 
 	_, err := st.db.Exec(sql)
 	if err != nil {
@@ -196,7 +196,7 @@ func (st *Store) GetJSON(key string, valueDefault interface{}) interface{} {
 	return valueDefault
 }
 
-// GetJSON gets a JSON key from cache
+// Remove removes a key from cache
 func (st *Store) Remove(key string) error {
 	sqlStr, _, _ := goqu.Dialect(st.dbDriverName).From(st.cacheTableName).Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).Delete().ToSQL()
 
@@ -254,7 +254,7 @@ func (st *Store) Set(key string, value string, seconds int64) (bool, error) {
 	return true, nil
 }
 
-// Set sets new key value pair
+// SetJSON sets new key value pair
 func (st *Store) SetJSON(key string, value interface{}, seconds int64) (bool, error) {
 	jsonValue, jsonError := json.Marshal(value)
 	if jsonError != nil {
@@ -264,8 +264,8 @@ func (st *Store) SetJSON(key string, value interface{}, seconds int64) (bool, er
 	return st.Set(key, string(jsonValue), seconds)
 }
 
-// SqlCreateTable returns a SQL string for creating the setting table
-func (st *Store) SqlCreateTable() string {
+// SQLCreateTable returns a SQL string for creating the cache table
+func (st *Store) SQLCreateTable() string {
 	sqlMysql := `
 	CREATE TABLE IF NOT EXISTS ` + st.cacheTableName + ` (
 	  id varchar(40) NOT NULL PRIMARY KEY,
