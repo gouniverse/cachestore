@@ -14,10 +14,3 @@ type Cache struct {
 	UpdatedAt time.Time  `db:"updated_at"`
 	DeletedAt *time.Time `db:"deleted_at"`
 }
-
-// BeforeCreate adds UID to model
-// func (c *Cache) BeforeCreate(tx *gorm.DB) (err error) {
-// 	uuid := uid.HumanUid()
-// 	c.ID = uuid
-// 	return nil
-// }

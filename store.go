@@ -1,6 +1,7 @@
 package cachestore
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -15,6 +16,7 @@ import (
 	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
 	_ "github.com/doug-martin/goqu/v9/dialect/sqlite3"
 	_ "github.com/doug-martin/goqu/v9/dialect/sqlserver"
+	"github.com/georgysavva/scany/sqlscan"
 	"github.com/gouniverse/uid"
 )
 
@@ -113,6 +115,11 @@ func (st *Store) DriverName(db *sql.DB) string {
 	return driverFullName
 }
 
+// EnableDebug - enables the debug option
+func (st *Store) EnableDebug(debug bool) {
+	st.debug = debug
+}
+
 // ExpireCacheGoroutine - soft deletes expired cache
 func (st *Store) ExpireCacheGoroutine() error {
 	i := 0
@@ -140,50 +147,24 @@ func (st *Store) ExpireCacheGoroutine() error {
 
 // FindByKey finds a cache by key
 func (st *Store) FindByKey(key string) *Cache {
-	cache := &Cache{}
-	sqlStr, _, _ := goqu.Dialect(st.dbDriverName).From(st.cacheTableName).Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).Select("cache_key", "cache_value", "created_at", "deleted_at", "expires_at", "id", "updated_at").ToSQL()
+	sqlStr, _, _ := goqu.Dialect(st.dbDriverName).From(st.cacheTableName).Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).Select("*").ToSQL()
 
 	if st.debug {
 		log.Println(sqlStr)
 	}
 
-	var createdAt string
-	var updatedAt string
-	var deletedAt *string
-	var expiresAt *string
+	var cache Cache
+	err := sqlscan.Get(context.Background(), st.db, &cache, sqlStr)
 
-	err := st.db.QueryRow(sqlStr).Scan(&cache.Key, &cache.Value, &createdAt, &deletedAt, &expiresAt, &cache.ID, &updatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err.Error() == sql.ErrNoRows.Error() {
 			return nil
 		}
 		log.Fatal("Failed to execute query: ", err)
 		return nil
 	}
 
-	layout := "Mon Jan 02 2006 15:04:05 GMT-0700"
-	createdAtTime, err := time.Parse(layout, createdAt)
-	if err == nil {
-		cache.CreatedAt = createdAtTime
-	}
-	updatedAtTime, err := time.Parse(layout, updatedAt)
-	if err == nil {
-		cache.UpdatedAt = updatedAtTime
-	}
-	if deletedAt != nil {
-		deletedAtTime, err := time.Parse(layout, *deletedAt)
-		if err == nil {
-			cache.DeletedAt = &deletedAtTime
-		}
-	}
-	if expiresAt != nil {
-		expiresAtTime, err := time.Parse(layout, *expiresAt)
-		if err == nil {
-			cache.ExpiresAt = &expiresAtTime
-		}
-	}
-
-	return cache
+	return &cache
 }
 
 // Get gets a key from cache
@@ -255,6 +236,7 @@ func (st *Store) Set(key string, value string, seconds int64) (bool, error) {
 		sqlStr, _, _ = goqu.Dialect(st.dbDriverName).Insert(st.cacheTableName).Rows(newCache).ToSQL()
 	} else {
 		cache.Value = value
+		cache.ExpiresAt = &expiresAt
 		cache.UpdatedAt = time.Now()
 		sqlStr, _, _ = goqu.Dialect(st.dbDriverName).Update(st.cacheTableName).Set(cache).ToSQL()
 	}
@@ -270,17 +252,6 @@ func (st *Store) Set(key string, value string, seconds int64) (bool, error) {
 	}
 
 	return true, nil
-	// return true
-	// sql := sb.NewSqlite().Table(st.tableName).Insert(map[string]string{
-	// 	"id":          uid.NanoUid(),
-	// 	"cache_key":   key,
-	// 	"cache_value": value,
-	// 	"expires_at":  expiresAt.Format("2006-01-02T15:04:05"),
-	// 	"created_at":  time.Now().Format("2006-01-02T15:04:05"),
-	// 	"updated_at":  time.Now().Format("2006-01-02T15:04:05"),
-	// })
-	// log.Println(sql)
-	// return true
 }
 
 // Set sets new key value pair
