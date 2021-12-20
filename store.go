@@ -125,7 +125,9 @@ func (st *Store) ExpireCacheGoroutine() error {
 	i := 0
 	for {
 		i++
-		fmt.Println("Cleaning expired sessions...")
+		if st.debug {
+			log.Println("Cleaning expired cache...")
+		}
 		sqlStr, _, _ := goqu.Dialect(st.dbDriverName).From(st.cacheTableName).Where(goqu.C("expires_at").Lt(time.Now())).Delete().ToSQL()
 
 		if st.debug {
