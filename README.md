@@ -37,6 +37,8 @@ token := cacheStore.Get("token", "") // "" - default value, if the key has expir
 
 ## Changelog
 
+2021.12.27 - Cacke key length increased
+
 2021.12.12 - Added license
 
 2021.12.12 - Added tests badge
