@@ -37,7 +37,9 @@ token := cacheStore.Get("token", "") // "" - default value, if the key has expir
 
 ## Changelog
 
-2021.12.27 - Cacke key length increased
+2021.12.29 - Cache ID updated to nano precission
+
+2021.12.27 - Cache key length increased
 
 2021.12.12 - Added license
 
