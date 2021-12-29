@@ -227,7 +227,7 @@ func (st *Store) Set(key string, value string, seconds int64) (bool, error) {
 	var sqlStr string
 	if cache == nil {
 		var newCache = Cache{
-			ID:        uid.MicroUid(),
+			ID:        uid.NanoUid(),
 			Key:       key,
 			Value:     value,
 			ExpiresAt: &expiresAt,

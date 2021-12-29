@@ -3,10 +3,10 @@ module github.com/gouniverse/cachestore
 go 1.17
 
 require (
-	github.com/doug-martin/goqu/v9 v9.16.0
+	github.com/doug-martin/goqu/v9 v9.18.0
 	github.com/georgysavva/scany v0.2.9
-	github.com/gouniverse/uid v1.2.0
-	github.com/mattn/go-sqlite3 v2.0.1+incompatible
+	github.com/gouniverse/uid v1.3.0
+	github.com/mattn/go-sqlite3 v2.0.3+incompatible
 )
 
 require (
