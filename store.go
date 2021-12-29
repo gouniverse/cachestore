@@ -148,7 +148,7 @@ func (st *Store) ExpireCacheGoroutine() error {
 
 // FindByKey finds a cache by key
 func (st *Store) FindByKey(key string) *Cache {
-	sqlStr, _, _ := goqu.Dialect(st.dbDriverName).From(st.cacheTableName).Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).Select("*").ToSQL()
+	sqlStr, _, _ := goqu.Dialect(st.dbDriverName).From(st.cacheTableName).Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).Select("*").Limit(1).ToSQL()
 
 	if st.debug {
 		log.Println(sqlStr)
@@ -236,10 +236,12 @@ func (st *Store) Set(key string, value string, seconds int64) (bool, error) {
 		}
 		sqlStr, _, _ = goqu.Dialect(st.dbDriverName).Insert(st.cacheTableName).Rows(newCache).ToSQL()
 	} else {
-		cache.Value = value
-		cache.ExpiresAt = &expiresAt
-		cache.UpdatedAt = time.Now()
-		sqlStr, _, _ = goqu.Dialect(st.dbDriverName).Update(st.cacheTableName).Set(cache).ToSQL()
+		fields := map[string]interface{}{}
+		fields["cache_value"] = value
+		fields["expires_at"] = &expiresAt
+		fields["updated_at"] = time.Now()
+
+		sqlStr, _, _ = goqu.Dialect(st.dbDriverName).Update(st.cacheTableName).Set(fields).Where(goqu.C("id").Eq(cache.ID)).ToSQL()
 	}
 
 	if st.debug {
