@@ -78,7 +78,11 @@ func TestStoreCacheDelete(t *testing.T) {
 		t.Fatalf("Entiry could not be created: " + err.Error())
 	}
 
-	if store.FindByKey("post") != nil {
+	val, err := store.FindByKey("post")
+	if err != nil {
+		t.Fatalf("Getting JSON failed:" + err.Error())
+	}
+	if val != nil {
 		t.Fatalf("Cache should no longer be present")
 	}
 }
@@ -111,7 +115,10 @@ func TestSetKey(t *testing.T) {
 		t.Fatalf("Response not true: " + err.Error())
 	}
 
-	value := store.Get("hello", "")
+	value, err := store.Get("hello", "")
+	if err != nil {
+		t.Fatalf("Getting JSON failed:" + err.Error())
+	}
 
 	if value != "world" {
 		t.Fatalf("Incorrect value: " + err.Error())
@@ -133,7 +140,11 @@ func TestUpdateKey(t *testing.T) {
 		t.Fatalf("Response not true: " + err.Error())
 	}
 
-	cache1 := store.FindByKey("hello")
+	cache1, err := store.FindByKey("hello")
+
+	if err != nil {
+		t.Fatalf("Find by key failed:" + err.Error())
+	}
 
 	time.Sleep(2 * time.Second)
 
@@ -147,7 +158,10 @@ func TestUpdateKey(t *testing.T) {
 		t.Fatalf("Update response not true: " + err.Error())
 	}
 
-	cache2 := store.FindByKey("hello")
+	cache2, err := store.FindByKey("hello")
+	if err != nil {
+		t.Fatalf("Find by key failed:" + err.Error())
+	}
 
 	if cache2 == nil {
 		t.Fatalf("Cache not found: " + err.Error())
@@ -167,5 +181,32 @@ func TestUpdateKey(t *testing.T) {
 
 	if cache2.UpdatedAt.Sub(cache1.CreatedAt).Seconds() < 1 {
 		t.Fatalf("Updated at should more than 1 second after created at date: " + cache2.UpdatedAt.Format(time.UnixDate) + " - " + cache1.CreatedAt.Format(time.UnixDate))
+	}
+}
+
+func TestSetGetJSON(t *testing.T) {
+	db := InitDB("test_cache_set_json.db")
+
+	store, _ := NewStore(WithDb(db), WithTableName("my_cache"), WithAutoMigrate(true))
+
+	ok, err := store.SetJSON("hello", map[string]string{"first_name": "Jo"}, 1)
+
+	if err != nil {
+		t.Fatalf("Setting key failed: " + err.Error())
+	}
+
+	if ok != true {
+		t.Fatalf("Response not true: " + err.Error())
+	}
+
+	value, err := store.GetJSON("hello", "")
+
+	if err != nil {
+		t.Fatalf("Getting JSON failed:" + err.Error())
+	}
+
+	result := value.(map[string]interface{})
+	if result["first_name"] != "Jo" {
+		t.Fatalf("Incorrect value: %s", value)
 	}
 }

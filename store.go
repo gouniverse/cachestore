@@ -147,7 +147,7 @@ func (st *Store) ExpireCacheGoroutine() error {
 }
 
 // FindByKey finds a cache by key
-func (st *Store) FindByKey(key string) *Cache {
+func (st *Store) FindByKey(key string) (*Cache, error) {
 	sqlStr, _, _ := goqu.Dialect(st.dbDriverName).From(st.cacheTableName).Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).Select("*").Limit(1).ToSQL()
 
 	if st.debug {
@@ -159,42 +159,50 @@ func (st *Store) FindByKey(key string) *Cache {
 
 	if err != nil {
 		if err.Error() == sql.ErrNoRows.Error() {
-			return nil
+			return nil, nil
 		}
-		log.Fatal("Failed to execute query: ", err)
-		return nil
+		//log.Fatal("Failed to execute query: ", err)
+		return nil, err
 	}
 
-	return &cache
+	return &cache, nil
 }
 
 // Get gets a key from cache
-func (st *Store) Get(key string, valueDefault string) string {
-	cache := st.FindByKey(key)
+func (st *Store) Get(key string, valueDefault string) (string, error) {
+	cache, errFind := st.FindByKey(key)
 
-	if cache != nil {
-		return cache.Value
+	if errFind != nil {
+		return valueDefault, errFind
 	}
 
-	return valueDefault
+	if cache != nil {
+		return cache.Value, nil
+	}
+
+	return valueDefault, nil
 }
 
 // GetJSON gets a JSON key from cache
-func (st *Store) GetJSON(key string, valueDefault interface{}) interface{} {
-	cache := st.FindByKey(key)
+func (st *Store) GetJSON(key string, valueDefault interface{}) (interface{}, error) {
+	cache, errFind := st.FindByKey(key)
+
+	if errFind != nil {
+		return valueDefault, errFind
+	}
 
 	if cache != nil {
 		jsonValue := cache.Value
 		var e interface{}
-		jsonError := json.Unmarshal([]byte(jsonValue), e)
+		jsonError := json.Unmarshal([]byte(jsonValue), &e)
 		if jsonError != nil {
-			return valueDefault
+			return valueDefault, jsonError
 		}
 
-		return e
+		return e, nil
 	}
 
-	return valueDefault
+	return valueDefault, nil
 }
 
 // Remove removes a key from cache
@@ -220,7 +228,11 @@ func (st *Store) Remove(key string) error {
 
 // Set sets new key value pair
 func (st *Store) Set(key string, value string, seconds int64) (bool, error) {
-	cache := st.FindByKey(key)
+	cache, errFind := st.FindByKey(key)
+
+	if errFind != nil {
+		return false, errFind
+	}
 
 	expiresAt := time.Now().Add(time.Second * time.Duration(seconds))
 
