@@ -23,7 +23,7 @@ go cacheStore.ExpireCacheGoroutine()
 
 - Set value to cache with expiration
 ```
-isSaved := cacheStore.Set("token", "ABCDEFGHIJKLMNOPQRSTVUXYZ", 60*60) // 1 hour (= 60 min * 60 sec)
+isSaved, err := cacheStore.Set("token", "ABCDEFGHIJKLMNOPQRSTVUXYZ", 60*60) // 1 hour (= 60 min * 60 sec)
 if isSaved == false {
 	log.Println("Saving failed")
 	return
@@ -32,10 +32,31 @@ if isSaved == false {
 
 - Get value from cache with default if not found
 ```
-token := cacheStore.Get("token", "") // "" - default value, if the key has expired, or missing
+token, err := cacheStore.Get("token", "") // "" - default value, if the key has expired, or missing
+```
+
+- Set and retrieve complex value as JSON
+```
+isSaved, err := cacheStore.Set("token", map[string]string{"first_name": "Jo"}, 60*60) // 1 hour (= 60 min * 60 sec)
+if isSaved == false {
+	log.Println("Saving failed")
+	return
+}
+
+value, err := store.GetJSON("hello", "")
+
+if err != nil {
+	log.Fatalf("Getting JSON failed:" + err.Error())
+}
+
+result := value.(map[string]interface{})
+
+log.Println(result["first_name"])
 ```
 
 ## Changelog
+
+2021.12.31 - Fixed GetJSON and added tests
 
 2021.12.29 - Cache ID updated to nano precission
 
