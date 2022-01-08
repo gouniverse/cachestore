@@ -269,7 +269,7 @@ func (st *Store) Set(key string, value string, seconds int64) (bool, error) {
 	return true, nil
 }
 
-// SetJSON sets new key value pair
+// SetJSON sets new key JSON value pair
 func (st *Store) SetJSON(key string, value interface{}, seconds int64) (bool, error) {
 	jsonValue, jsonError := json.Marshal(value)
 	if jsonError != nil {
