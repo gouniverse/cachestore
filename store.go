@@ -178,10 +178,10 @@ func (st *Store) FindByKey(key string) (*Cache, error) {
 	err := sqlscan.Get(context.Background(), st.db, &cache, sqlStr)
 
 	if err != nil {
-		if err.Error() == sql.ErrNoRows.Error() {
+		if err == sql.ErrNoRows {
 			return nil, nil
 		}
-		log.Print("Cache. FindByKey. Error: ", err)
+		log.Error("CacheStore. FindByKey. Error: ", err)
 		return nil, err
 	}
 
@@ -246,7 +246,7 @@ func (st *Store) Remove(key string) error {
 			return nil
 		}
 
-		log.Fatal("Failed to execute query: ", err)
+		log.Error("CacheStore. Error: ", err)
 		return nil
 	}
 
