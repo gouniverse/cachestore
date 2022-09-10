@@ -151,7 +151,7 @@ func (st *Store) ExpireCacheGoroutine() error {
 			if err == sql.ErrNoRows {
 				return nil
 			}
-			log.Error("CacheStore. ExpireCacheGoroutine. Error: ", err)
+			log.Println("CacheStore. ExpireCacheGoroutine. Error: ", err)
 			return nil
 		}
 
@@ -181,7 +181,7 @@ func (st *Store) FindByKey(key string) (*Cache, error) {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
-		log.Error("CacheStore. FindByKey. Error: ", err)
+		log.Println("CacheStore. FindByKey. Error: ", err)
 		return nil, err
 	}
 
@@ -246,7 +246,7 @@ func (st *Store) Remove(key string) error {
 			return nil
 		}
 
-		log.Error("CacheStore. Error: ", err)
+		log.Println("CacheStore. Error: ", err)
 		return nil
 	}
 
