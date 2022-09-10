@@ -151,7 +151,7 @@ func (st *Store) ExpireCacheGoroutine() error {
 			if err == sql.ErrNoRows {
 				return nil
 			}
-			log.Fatal("Failed to execute query: ", err)
+			log.Error("CacheStore. ExpireCacheGoroutine. Error: ", err)
 			return nil
 		}
 
@@ -181,7 +181,7 @@ func (st *Store) FindByKey(key string) (*Cache, error) {
 		if err.Error() == sql.ErrNoRows.Error() {
 			return nil, nil
 		}
-		//log.Fatal("Failed to execute query: ", err)
+		log.Print("Cache. FindByKey. Error: ", err)
 		return nil, err
 	}
 
