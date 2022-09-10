@@ -149,6 +149,10 @@ func (st *Store) ExpireCacheGoroutine() error {
 		_, err := st.db.Exec(sqlStr)
 		if err != nil {
 			if err == sql.ErrNoRows {
+				// Looks like this is now outdated for sqlscan
+				return nil
+			}
+			if sqlscan.NotFound(err) {
 				return nil
 			}
 			log.Println("CacheStore. ExpireCacheGoroutine. Error: ", err)
@@ -179,6 +183,10 @@ func (st *Store) FindByKey(key string) (*Cache, error) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
+			// Looks like this is now outdated for sqlscan
+			return nil, nil
+		}
+		if sqlscan.NotFound(err) {
 			return nil, nil
 		}
 		log.Println("CacheStore. FindByKey. Error: ", err)
@@ -243,6 +251,11 @@ func (st *Store) Remove(key string) error {
 	_, err := st.db.Exec(sqlStr)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			// Looks like this is now outdated for sqlscan
+			return nil
+		}
+
+		if sqlscan.NotFound(err) {
 			return nil
 		}
 
