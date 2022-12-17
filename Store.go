@@ -25,54 +25,39 @@ type Store struct {
 	dbDriverName       string
 	db                 *sql.DB
 	automigrateEnabled bool
-	debug              bool
+	debugEnabled       bool
 }
 
-// StoreOption options for the cache store
-type StoreOption func(*Store)
-
-// WithAutoMigrate sets the table name for the cache store
-func WithAutoMigrate(automigrateEnabled bool) StoreOption {
-	return func(s *Store) {
-		s.automigrateEnabled = automigrateEnabled
-	}
-}
-
-// WithDb sets the database for the setting store
-func WithDb(db *sql.DB) StoreOption {
-	return func(s *Store) {
-		s.db = db
-		s.dbDriverName = s.DriverName(s.db)
-	}
-}
-
-// WithDebug prints the SQL queries
-func WithDebug(debug bool) StoreOption {
-	return func(s *Store) {
-		s.debug = debug
-	}
-}
-
-// WithTableName sets the table name for the cache store
-func WithTableName(cacheTableName string) StoreOption {
-	return func(s *Store) {
-		s.cacheTableName = cacheTableName
-	}
+// NewStoreOptions define the options for creating a new session store
+type NewStoreOptions struct {
+	CacheTableName     string
+	DB                 *sql.DB
+	DbDriverName       string
+	TimeoutSeconds     int64
+	AutomigrateEnabled bool
+	DebugEnabled       bool
 }
 
 // NewStore creates a new entity store
-func NewStore(opts ...StoreOption) (*Store, error) {
-	store := &Store{}
-	for _, opt := range opts {
-		opt(store)
+func NewStore(opts NewStoreOptions) (*Store, error) {
+	store := &Store{
+		cacheTableName:     opts.CacheTableName,
+		automigrateEnabled: opts.AutomigrateEnabled,
+		db:                 opts.DB,
+		dbDriverName:       opts.DbDriverName,
+		debugEnabled:       opts.DebugEnabled,
 	}
 
 	if store.cacheTableName == "" {
-		return nil, errors.New("cache store: cacheTableName is required")
+		return nil, errors.New("cache store: sessionTableName is required")
 	}
 
-	if store.debug {
-		log.Println(store.dbDriverName)
+	if store.db == nil {
+		return nil, errors.New("cache store: DB is required")
+	}
+
+	if store.dbDriverName == "" {
+		store.dbDriverName = store.DriverName(store.db)
 	}
 
 	if store.automigrateEnabled {
@@ -121,8 +106,8 @@ func (st *Store) DriverName(db *sql.DB) string {
 }
 
 // EnableDebug - enables the debug option
-func (st *Store) EnableDebug(debug bool) {
-	st.debug = debug
+func (st *Store) EnableDebug(debugEnabled bool) {
+	st.debugEnabled = debugEnabled
 }
 
 // ExpireCacheGoroutine - soft deletes expired cache
@@ -130,19 +115,19 @@ func (st *Store) ExpireCacheGoroutine() error {
 	i := 0
 	for {
 		i++
-		if st.debug {
+		if st.debugEnabled {
 			log.Println("Cleaning expired cache...")
 		}
 		sqlStr, _, errSql := goqu.Dialect(st.dbDriverName).From(st.cacheTableName).Where(goqu.C("expires_at").Lt(time.Now())).Delete().ToSQL()
 
 		if errSql != nil {
-			if st.debug {
+			if st.debugEnabled {
 				log.Println(errSql.Error())
 			}
 			return errSql
 		}
 
-		if st.debug {
+		if st.debugEnabled {
 			log.Println(sqlStr)
 		}
 
@@ -173,13 +158,13 @@ func (st *Store) FindByKey(key string) (*Cache, error) {
 		ToSQL()
 
 	if errSql != nil {
-		if st.debug {
+		if st.debugEnabled {
 			log.Println(errSql.Error())
 		}
 		return nil, errSql
 	}
 
-	if st.debug {
+	if st.debugEnabled {
 		log.Println(sqlStr)
 	}
 
@@ -195,7 +180,7 @@ func (st *Store) FindByKey(key string) (*Cache, error) {
 			return nil, nil
 		}
 
-		if st.debug {
+		if st.debugEnabled {
 			log.Println("CacheStore. FindByKey. Error: ", err)
 		}
 
@@ -251,13 +236,13 @@ func (st *Store) Remove(key string) error {
 		ToSQL()
 
 	if errSql != nil {
-		if st.debug {
+		if st.debugEnabled {
 			log.Println(errSql.Error())
 		}
 		return errSql
 	}
 
-	if st.debug {
+	if st.debugEnabled {
 		log.Println(sqlStr)
 	}
 
@@ -318,13 +303,13 @@ func (st *Store) Set(key string, value string, seconds int64) (bool, error) {
 	}
 
 	if errSql != nil {
-		if st.debug {
+		if st.debugEnabled {
 			log.Println(errSql.Error())
 		}
 		return false, errSql
 	}
 
-	if st.debug {
+	if st.debugEnabled {
 		log.Println(sqlStr)
 	}
 

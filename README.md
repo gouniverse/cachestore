@@ -14,7 +14,12 @@ go get -u github.com/gouniverse/cachestore
 ## Setup
 
 ```
-cacheStore = cachestore.NewStore(cachestore.WithDb(databaseInstance), cachestore.WithTableName("my_cache"), cachestore.WithDebug(true))
+cacheStore = cachestore.NewStore(NewStoreOptions{
+	DB:                 db,
+	CacheTableName:     "my_cache",
+	AutomigrateEnabled: false,
+	DebugEnabled: false,
+})
 
 go cacheStore.ExpireCacheGoroutine()
 ```

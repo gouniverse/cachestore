@@ -24,7 +24,11 @@ func InitDB(filepath string) *sql.DB {
 func TestStoreCreate(t *testing.T) {
 	db := InitDB("test_cache_store_create.db")
 
-	store, err := NewStore(WithDb(db), WithTableName("cache_create"), WithAutoMigrate(true))
+	store, err := NewStore(NewStoreOptions{
+		DB:                 db,
+		CacheTableName:     "cache_create",
+		AutomigrateEnabled: true,
+	})
 
 	if err != nil {
 		t.Fatalf("Store could not be created: " + err.Error())
@@ -48,7 +52,11 @@ func TestStoreCreate(t *testing.T) {
 func TestStoreAutomigrate(t *testing.T) {
 	db := InitDB("test_cache_automigrate.db")
 
-	store, _ := NewStore(WithDb(db), WithTableName("cache_automigrate"))
+	store, _ := NewStore(NewStoreOptions{
+		DB:                 db,
+		CacheTableName:     "cache_automigrate",
+		AutomigrateEnabled: false,
+	})
 
 	err := store.AutoMigrate()
 
@@ -70,7 +78,11 @@ func TestStoreAutomigrate(t *testing.T) {
 func TestStoreCacheDelete(t *testing.T) {
 	db := InitDB("test_cache_delete.db")
 
-	store, _ := NewStore(WithDb(db), WithTableName("cache"), WithAutoMigrate(true))
+	store, _ := NewStore(NewStoreOptions{
+		DB:                 db,
+		CacheTableName:     "cache_automigrate",
+		AutomigrateEnabled: true,
+	})
 
 	err := store.Remove("post")
 
@@ -90,7 +102,11 @@ func TestStoreCacheDelete(t *testing.T) {
 func TestStoreEnableDebug(t *testing.T) {
 	db := InitDB("test_cache_debug.db")
 
-	store, _ := NewStore(WithDb(db), WithTableName("my_cache"))
+	store, _ := NewStore(NewStoreOptions{
+		DB:                 db,
+		CacheTableName:     "cache_debug",
+		AutomigrateEnabled: false,
+	})
 	store.EnableDebug(true)
 
 	err := store.AutoMigrate()
@@ -103,7 +119,11 @@ func TestStoreEnableDebug(t *testing.T) {
 func TestSetKey(t *testing.T) {
 	db := InitDB("test_cache_set_key.db")
 
-	store, _ := NewStore(WithDb(db), WithTableName("my_cache"), WithAutoMigrate(true))
+	store, _ := NewStore(NewStoreOptions{
+		DB:                 db,
+		CacheTableName:     "cache_set_key",
+		AutomigrateEnabled: true,
+	})
 
 	ok, err := store.Set("hello", "world", 1)
 
@@ -128,7 +148,11 @@ func TestSetKey(t *testing.T) {
 func TestUpdateKey(t *testing.T) {
 	db := InitDB("test_cache_update_key.db")
 
-	store, _ := NewStore(WithDb(db), WithTableName("my_cache"), WithAutoMigrate(true))
+	store, _ := NewStore(NewStoreOptions{
+		DB:                 db,
+		CacheTableName:     "cache_update_key",
+		AutomigrateEnabled: true,
+	})
 
 	ok, err := store.Set("hello", "world", 1)
 
@@ -187,7 +211,11 @@ func TestUpdateKey(t *testing.T) {
 func TestSetGetJSON(t *testing.T) {
 	db := InitDB("test_cache_set_json.db")
 
-	store, _ := NewStore(WithDb(db), WithTableName("my_cache"), WithAutoMigrate(true))
+	store, _ := NewStore(NewStoreOptions{
+		DB:                 db,
+		CacheTableName:     "cache_automigrate",
+		AutomigrateEnabled: true,
+	})
 
 	ok, err := store.SetJSON("hello", map[string]string{"first_name": "Jo"}, 1)
 
