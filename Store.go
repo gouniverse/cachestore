@@ -165,7 +165,12 @@ func (st *Store) ExpireCacheGoroutine() error {
 
 // FindByKey finds a cache by key
 func (st *Store) FindByKey(key string) (*Cache, error) {
-	sqlStr, _, errSql := goqu.Dialect(st.dbDriverName).From(st.cacheTableName).Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).Select("*").Limit(1).ToSQL()
+	sqlStr, _, errSql := goqu.Dialect(st.dbDriverName).
+		From(st.cacheTableName).
+		Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).
+		Select("*").
+		Limit(1).
+		ToSQL()
 
 	if errSql != nil {
 		if st.debug {
@@ -189,7 +194,11 @@ func (st *Store) FindByKey(key string) (*Cache, error) {
 		if sqlscan.NotFound(err) {
 			return nil, nil
 		}
-		log.Println("CacheStore. FindByKey. Error: ", err)
+
+		if st.debug {
+			log.Println("CacheStore. FindByKey. Error: ", err)
+		}
+
 		return nil, err
 	}
 
@@ -235,7 +244,11 @@ func (st *Store) GetJSON(key string, valueDefault interface{}) (interface{}, err
 
 // Remove removes a key from cache
 func (st *Store) Remove(key string) error {
-	sqlStr, _, errSql := goqu.Dialect(st.dbDriverName).From(st.cacheTableName).Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).Delete().ToSQL()
+	sqlStr, _, errSql := goqu.Dialect(st.dbDriverName).
+		From(st.cacheTableName).
+		Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).
+		Delete().
+		ToSQL()
 
 	if errSql != nil {
 		if st.debug {
@@ -287,14 +300,21 @@ func (st *Store) Set(key string, value string, seconds int64) (bool, error) {
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		}
-		sqlStr, _, errSql = goqu.Dialect(st.dbDriverName).Insert(st.cacheTableName).Rows(newCache).ToSQL()
+		sqlStr, _, errSql = goqu.Dialect(st.dbDriverName).
+			Insert(st.cacheTableName).
+			Rows(newCache).
+			ToSQL()
 	} else {
 		fields := map[string]interface{}{}
 		fields["cache_value"] = value
 		fields["expires_at"] = &expiresAt
 		fields["updated_at"] = time.Now()
 
-		sqlStr, _, errSql = goqu.Dialect(st.dbDriverName).Update(st.cacheTableName).Set(fields).Where(goqu.C("id").Eq(cache.ID)).ToSQL()
+		sqlStr, _, errSql = goqu.Dialect(st.dbDriverName).
+			Update(st.cacheTableName).
+			Set(fields).
+			Where(goqu.C("id").Eq(cache.ID)).
+			ToSQL()
 	}
 
 	if errSql != nil {
