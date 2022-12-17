@@ -13,7 +13,7 @@ go get -u github.com/gouniverse/cachestore
 
 ## Setup
 
-```
+```golang
 cacheStore = cachestore.NewStore(NewStoreOptions{
 	DB:                 db,
 	CacheTableName:     "my_cache",
@@ -27,7 +27,8 @@ go cacheStore.ExpireCacheGoroutine()
 ## Usage
 
 - Set value to cache with expiration
-```
+
+```golang
 isSaved, err := cacheStore.Set("token", "ABCDEFGHIJKLMNOPQRSTVUXYZ", 60*60) // 1 hour (= 60 min * 60 sec)
 if isSaved == false {
 	log.Println("Saving failed")
@@ -36,12 +37,14 @@ if isSaved == false {
 ```
 
 - Get value from cache with default if not found
-```
+
+```golang
 token, err := cacheStore.Get("token", "") // "" - default value, if the key has expired, or missing
 ```
 
 - Set and retrieve complex value as JSON
-```
+
+```golang
 isSaved, err := cacheStore.Set("token", map[string]string{"first_name": "Jo"}, 60*60) // 1 hour (= 60 min * 60 sec)
 if isSaved == false {
 	log.Println("Saving failed")
@@ -60,6 +63,8 @@ log.Println(result["first_name"])
 ```
 
 ## Changelog
+
+2022.12.17 - Changed setup for new store
 
 2021.12.31 - Fixed GetJSON and added tests
 
