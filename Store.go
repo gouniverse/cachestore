@@ -265,11 +265,11 @@ func (st *Store) Remove(key string) error {
 }
 
 // Set sets new key value pair
-func (st *Store) Set(key string, value string, seconds int64) (bool, error) {
+func (st *Store) Set(key string, value string, seconds int64) error {
 	cache, errFind := st.FindByKey(key)
 
 	if errFind != nil {
-		return false, errFind
+		return errFind
 	}
 
 	expiresAt := time.Now().Add(time.Second * time.Duration(seconds))
@@ -306,27 +306,28 @@ func (st *Store) Set(key string, value string, seconds int64) (bool, error) {
 		if st.debugEnabled {
 			log.Println(errSql.Error())
 		}
-		return false, errSql
+		return errSql
 	}
 
 	if st.debugEnabled {
 		log.Println(sqlStr)
 	}
 
-	_, err := st.db.Exec(sqlStr)
+	_, errExec := st.db.Exec(sqlStr)
 
-	if err != nil {
-		return false, err
+	if errExec != nil {
+		return errExec
 	}
 
-	return true, nil
+	return nil
 }
 
 // SetJSON sets new key JSON value pair
-func (st *Store) SetJSON(key string, value interface{}, seconds int64) (bool, error) {
+func (st *Store) SetJSON(key string, value interface{}, seconds int64) error {
 	jsonValue, jsonError := json.Marshal(value)
+
 	if jsonError != nil {
-		return false, jsonError
+		return jsonError
 	}
 
 	return st.Set(key, string(jsonValue), seconds)

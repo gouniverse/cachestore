@@ -38,14 +38,10 @@ func TestStoreCreate(t *testing.T) {
 		t.Fatalf("Store could not be created")
 	}
 
-	isOk, err := store.Set("post", "1234567890", 5)
+	err = store.Set("post", "1234567890", 5)
 
 	if err != nil {
 		t.Fatalf("Cache could not be created: " + err.Error())
-	}
-
-	if isOk == false {
-		t.Fatalf("Cache could not be created")
 	}
 }
 
@@ -64,14 +60,10 @@ func TestStoreAutomigrate(t *testing.T) {
 		t.Fatalf("Automigrate failed: " + err.Error())
 	}
 
-	isOk, err := store.Set("post", "1234567890", 5)
+	err = store.Set("post", "1234567890", 5)
 
 	if err != nil {
 		t.Fatalf("Cache could not be created: " + err.Error())
-	}
-
-	if isOk == false {
-		t.Fatalf("Cache could not be created")
 	}
 }
 
@@ -87,7 +79,7 @@ func TestStoreCacheDelete(t *testing.T) {
 	err := store.Remove("post")
 
 	if err != nil {
-		t.Fatalf("Entiry could not be created: " + err.Error())
+		t.Fatalf("Entity could not be created: " + err.Error())
 	}
 
 	val, err := store.FindByKey("post")
@@ -125,14 +117,10 @@ func TestSetKey(t *testing.T) {
 		AutomigrateEnabled: true,
 	})
 
-	ok, err := store.Set("hello", "world", 1)
+	err := store.Set("hello", "world", 1)
 
 	if err != nil {
 		t.Fatalf("Setting key failed: " + err.Error())
-	}
-
-	if ok != true {
-		t.Fatalf("Response not true: " + err.Error())
 	}
 
 	value, err := store.Get("hello", "")
@@ -154,14 +142,10 @@ func TestUpdateKey(t *testing.T) {
 		AutomigrateEnabled: true,
 	})
 
-	ok, err := store.Set("hello", "world", 1)
+	err := store.Set("hello", "world", 1)
 
 	if err != nil {
 		t.Fatalf("Setting key failed: " + err.Error())
-	}
-
-	if ok != true {
-		t.Fatalf("Response not true: " + err.Error())
 	}
 
 	cache1, err := store.FindByKey("hello")
@@ -172,14 +156,10 @@ func TestUpdateKey(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	ok2, err2 := store.Set("hello", "world", 1)
+	err2 := store.Set("hello", "world", 1)
 
 	if err2 != nil {
 		t.Fatalf("Update setting key failed: " + err2.Error())
-	}
-
-	if ok2 != true {
-		t.Fatalf("Update response not true: " + err.Error())
 	}
 
 	cache2, err := store.FindByKey("hello")
@@ -217,14 +197,10 @@ func TestSetGetJSON(t *testing.T) {
 		AutomigrateEnabled: true,
 	})
 
-	ok, err := store.SetJSON("hello", map[string]string{"first_name": "Jo"}, 1)
+	err := store.SetJSON("hello", map[string]string{"first_name": "Jo"}, 1)
 
 	if err != nil {
 		t.Fatalf("Setting key failed: " + err.Error())
-	}
-
-	if ok != true {
-		t.Fatalf("Response not true: " + err.Error())
 	}
 
 	value, err := store.GetJSON("hello", "")
