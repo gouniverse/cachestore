@@ -20,7 +20,7 @@ import (
 )
 
 // Store defines a session store
-type Store struct {
+type storeImplementation struct {
 	cacheTableName     string
 	dbDriverName       string
 	db                 *sql.DB
@@ -39,8 +39,8 @@ type NewStoreOptions struct {
 }
 
 // NewStore creates a new entity store
-func NewStore(opts NewStoreOptions) (*Store, error) {
-	store := &Store{
+func NewStore(opts NewStoreOptions) (StoreInterface, error) {
+	store := &storeImplementation{
 		cacheTableName:     opts.CacheTableName,
 		automigrateEnabled: opts.AutomigrateEnabled,
 		db:                 opts.DB,
@@ -68,7 +68,7 @@ func NewStore(opts NewStoreOptions) (*Store, error) {
 }
 
 // AutoMigrate auto migrate
-func (st *Store) AutoMigrate() error {
+func (st *storeImplementation) AutoMigrate() error {
 	sql := st.SQLCreateTable()
 
 	_, err := st.db.Exec(sql)
@@ -81,7 +81,7 @@ func (st *Store) AutoMigrate() error {
 }
 
 // DriverName finds the driver name from database
-func (st *Store) DriverName(db *sql.DB) string {
+func (st *storeImplementation) DriverName(db *sql.DB) string {
 	dv := reflect.ValueOf(db.Driver())
 
 	driverFullName := dv.Type().String()
@@ -106,12 +106,12 @@ func (st *Store) DriverName(db *sql.DB) string {
 }
 
 // EnableDebug - enables the debug option
-func (st *Store) EnableDebug(debugEnabled bool) {
+func (st *storeImplementation) EnableDebug(debugEnabled bool) {
 	st.debugEnabled = debugEnabled
 }
 
 // ExpireCacheGoroutine - soft deletes expired cache
-func (st *Store) ExpireCacheGoroutine() error {
+func (st *storeImplementation) ExpireCacheGoroutine() error {
 	i := 0
 	for {
 		i++
@@ -149,7 +149,7 @@ func (st *Store) ExpireCacheGoroutine() error {
 }
 
 // FindByKey finds a cache by key
-func (st *Store) FindByKey(key string) (*Cache, error) {
+func (st *storeImplementation) FindByKey(key string) (*Cache, error) {
 	sqlStr, _, errSql := goqu.Dialect(st.dbDriverName).
 		From(st.cacheTableName).
 		Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).
@@ -191,7 +191,7 @@ func (st *Store) FindByKey(key string) (*Cache, error) {
 }
 
 // Get gets a key from cache
-func (st *Store) Get(key string, valueDefault string) (string, error) {
+func (st *storeImplementation) Get(key string, valueDefault string) (string, error) {
 	cache, errFind := st.FindByKey(key)
 
 	if errFind != nil {
@@ -206,7 +206,7 @@ func (st *Store) Get(key string, valueDefault string) (string, error) {
 }
 
 // GetJSON gets a JSON key from cache
-func (st *Store) GetJSON(key string, valueDefault interface{}) (interface{}, error) {
+func (st *storeImplementation) GetJSON(key string, valueDefault interface{}) (interface{}, error) {
 	cache, errFind := st.FindByKey(key)
 
 	if errFind != nil {
@@ -228,7 +228,7 @@ func (st *Store) GetJSON(key string, valueDefault interface{}) (interface{}, err
 }
 
 // Remove removes a key from cache
-func (st *Store) Remove(key string) error {
+func (st *storeImplementation) Remove(key string) error {
 	sqlStr, _, errSql := goqu.Dialect(st.dbDriverName).
 		From(st.cacheTableName).
 		Where(goqu.C("cache_key").Eq(key), goqu.C("deleted_at").IsNull()).
@@ -265,7 +265,7 @@ func (st *Store) Remove(key string) error {
 }
 
 // Set sets new key value pair
-func (st *Store) Set(key string, value string, seconds int64) error {
+func (st *storeImplementation) Set(key string, value string, seconds int64) error {
 	cache, errFind := st.FindByKey(key)
 
 	if errFind != nil {
@@ -323,7 +323,7 @@ func (st *Store) Set(key string, value string, seconds int64) error {
 }
 
 // SetJSON sets new key JSON value pair
-func (st *Store) SetJSON(key string, value interface{}, seconds int64) error {
+func (st *storeImplementation) SetJSON(key string, value interface{}, seconds int64) error {
 	jsonValue, jsonError := json.Marshal(value)
 
 	if jsonError != nil {
@@ -334,7 +334,7 @@ func (st *Store) SetJSON(key string, value interface{}, seconds int64) error {
 }
 
 // SQLCreateTable returns a SQL string for creating the cache table
-func (st *Store) SQLCreateTable() string {
+func (st *storeImplementation) SQLCreateTable() string {
 	sqlMysql := `
 	CREATE TABLE IF NOT EXISTS ` + st.cacheTableName + ` (
 	  id varchar(40) NOT NULL PRIMARY KEY,
