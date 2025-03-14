@@ -6,6 +6,9 @@ type StoreInterface interface {
 	AutoMigrate() error
 	EnableDebug(debugEnabled bool)
 	DriverName(db *sql.DB) string
+
+	ExpireCacheGoroutine() error
+
 	// SQLCreateTable() string
 
 	Set(key string, value string, seconds int64) error
